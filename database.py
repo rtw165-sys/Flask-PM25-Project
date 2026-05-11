@@ -12,24 +12,24 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_latest_data():
     conn, cursor = open_db()
-    result = {"success": True, "columns": None, "rows": None}
+    result = {"success": True, "message": None, "columns": None, "rows": None}
 
     if not conn:
         result["success"] = False
-        result["message"] = "資料庫開啟失敗:{e}"
+        result["message"] = "資料庫開啟失敗"
+
         return result
 
-    if not conn:
-        return None, None
-
-    sql = """select * from data where datacreationdate=
+    sql = """
+    select * from data where datacreationdate=
     (select max(datacreationdate) from data);
     """
-
-    # sql ="select max(datacreationdate) from data;"
+    # sql = 'select max(datacreationdate) from data;'
 
     try:
         cursor.execute(sql)
+
+        # 取得資料欄位名稱
         # print(cursor.description)
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
@@ -38,18 +38,16 @@ def get_latest_data():
         result["rows"] = rows
 
         return result
-
     except Exception as e:
         result["success"] = False
         result["message"] = f"資料庫查詢失敗:{e}"
-        print(e)
+
         return result
     finally:
         conn.close()
 
 
 def open_db():
-
     try:
         # print(os.getenv("HOST")) // os.getenv給本地端dotenv使用
         conn = pymysql.connect(
@@ -69,4 +67,4 @@ def open_db():
     return None, None
 
 
-# print(get_latest_data())
+print(get_latest_data())
