@@ -8,7 +8,6 @@ app = Flask(__name__)
 def index():
 
     result = database.get_latest_data()
-
     return render_template("index.html", result=result)
 
 
