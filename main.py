@@ -19,9 +19,10 @@ def api_data_six_county():
     avg_pm25 = []
     if result["success"]:
         df = pd.DataFrame(result["rows"], columns=result["columns"])
-
         for county in six_county:
-            avg_pm25.append(df.groupby("county").get_group(county)["pm25"].mean())
+            avg_pm25.append(
+                df.groupby("county").get_group(county)["pm25"].mean().round(2)
+            )
 
     return jsonify(
         {"datetime": datetime.now(), "labels": six_county, "values": avg_pm25}
@@ -49,7 +50,6 @@ def index():
     counties = [c[0] for c in counties]
 
     data = {}
-
     if result["success"]:
         datetime = result["rows"][0][4]
         datas = sorted(result["rows"], key=lambda x: x[3])
