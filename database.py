@@ -33,7 +33,6 @@ def get_data_by_county(county):
         result["rows"] = rows
 
         return result
-
     except Exception as e:
         result["success"] = False
         result["message"] = f"資料庫查詢失敗:{e}"
@@ -46,7 +45,7 @@ def get_data_by_county(county):
 # 取得不重複縣市
 def get_counties():
     conn, cursor = open_db()
-    result = {"success": True, "message": None, "rows": None}
+    result = {"success": True, "message": None, "rows": []}
 
     if not conn:
         result["success"] = False
@@ -73,6 +72,7 @@ def get_counties():
         conn.close()
 
 
+# 取得最新資料
 def get_latest_data():
     conn, cursor = open_db()
     result = {"success": True, "message": None, "columns": None, "rows": None}
@@ -128,3 +128,7 @@ def open_db():
         print(e)
 
     return None, None
+
+
+if __name__ == "__main__":
+    print(get_data_by_county("新北市"))
