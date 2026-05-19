@@ -218,22 +218,22 @@
   <p>資料來源：環境部即時 API</p>
   <p>🕒 資料更新時間：<span id="update-time">
       {{data.datetime}}
-    </span>
   </p>
-  
+
   {% if data %}
   <div class="kpi-card higher">
-    <span class="kpi-label">🚩 最高測站</span>
-    <span class="kpi-value">{{data.max[0]}} | {{data.max[1]}}<small>μg/m³</small></span>
+    <span class="kpi-label">🚩 最高測站 </span>
+    <span class="kpi-value">{{data.max[0]}} | {{data.max[1]}} <small>μg/m³</small></span>
   </div>
-  {% else %}
-  <span class="kpi-value">資料取得失敗</span>
-  {% endif %}
 
   <div class="kpi-card lower">
     <span class="kpi-label">✅ 最低測站</span>
-    <span class="kpi-value">{{data.min[0]}} | {{data.min[1]}}<small>μg/m³</small></span>
+    <span class="kpi-value">{{data.min[0]}} | {{data.min[1]}} <small>μg/m³</small></span>
   </div>
+  {% else %}
+  <span class="kpi-value">資料取得失敗!</span>
+  {% endif %}
+
   </div>
   <div class="table-container">
     <table>
@@ -274,12 +274,14 @@
 
   <script>
     const countiesEl = document.querySelector("#counties");
-    const sixCountyBtnEL=document.querySelector("#btn-six-avg");
+    const sixCountyBtnEL = document.querySelector("#btn-six-avg");
     const countyCtx = document.querySelector("#pm25Chart");
 
-    console.log(countiesEl,sixCountyBtnEL);
 
-    sixCountyBtnEL.addEventListener("click",(e)=>{
+
+    console.log(countiesEl, sixCountyBtnEL);
+
+    sixCountyBtnEL.addEventListener("click", (e) => {
 
       fetch(`/api/data/six-county`)
         .then(res => res.json())
@@ -291,18 +293,19 @@
           myChart.data.labels = labels;
           myChart.data.datasets[0].label = `六都 PM2.5 平均值`;
           myChart.data.datasets[0].data = values;
-          myChart.data.datasets[0].backgroundColor = 'rgba(52, 152, 219, 0.5)';
-          myChart.data.datasets[0].borderColor = 'rgba(52, 152, 219, 1)';
+          myChart.data.datasets[0].backgroundColor = 'rgba(155, 89, 182, 0.5)';
+          myChart.data.datasets[0].borderColor = 'rgba(155, 89, 182, 1)';
           myChart.update();
         })
+
     });
 
-
-    
 
     countiesEl.addEventListener("change", (e) => {
       let county = countiesEl.value;
       console.log(county);
+
+
       fetch(`/api/data/${county}`)
         .then(res => res.json())
         .then(data => {
@@ -343,7 +346,8 @@
 
     console.log(myChart);
 
-
+    //countiesEl.selectedIndex = 1;
+    //countiesEl.dispatchEvent(new Event("change"));
 
   </script>
 
