@@ -34,32 +34,27 @@
       margin-bottom: 20px;
     }
 
-    /* 1. 建立一個具備捲軸的容器 */
     .table-container {
-      max-height: 600px;
-      /* 設定你想要的高度 */
+      max-height: 400px;
       overflow-y: auto;
-      /* 開啟垂直捲軸 */
       border-radius: 8px;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
       background-color: white;
+      margin-top: 20px;
     }
 
-    /* 表格容器設置，讓表格具備現代感 */
     table {
       width: 100%;
       border-collapse: collapse;
       background-color: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      margin-top: 20px;
     }
 
-    /* 表頭樣式 */
     thead {
       background-color: var(--primary-color);
       color: white;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     th,
@@ -69,20 +64,13 @@
       border-bottom: 1px solid #eee;
     }
 
-    /* 斑馬紋樣式 */
     tbody tr:nth-child(even) {
       background-color: #f9f9f9;
     }
 
-    /* 滑鼠懸停高亮 (很適合查看數據列) */
     tbody tr:hover {
       background-color: #eef6fc;
       transition: background-color 0.2s ease;
-    }
-
-    /* 數值內容強調（可選） */
-    td {
-      font-size: 0.95em;
     }
 
     #update-time {
@@ -90,19 +78,14 @@
       color: var(--accent-color);
     }
 
-    .error {
-      color: red;
-    }
-
-    /* 控制列容器 */
     .controls {
+      margin-top: 30px;
       margin-bottom: 20px;
       display: flex;
       gap: 10px;
       align-items: center;
     }
 
-    /* 下拉選單樣式 */
     select {
       padding: 10px 15px;
       border-radius: 5px;
@@ -112,15 +95,8 @@
       color: var(--primary-color);
       cursor: pointer;
       outline: none;
-      transition: border-color 0.3s;
     }
 
-    select:focus {
-      border-color: var(--accent-color);
-      box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
-    }
-
-    /* 按鈕樣式 */
     button {
       padding: 10px 20px;
       border-radius: 5px;
@@ -130,29 +106,19 @@
       font-size: 1rem;
       font-weight: bold;
       cursor: pointer;
-      transition: background-color 0.3s, transform 0.1s;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s;
     }
 
     button:hover {
       background-color: #2980b9;
-      /* 稍微深一點的藍 */
     }
 
-    button:active {
-      transform: translateY(2px);
-      /* 點擊時的下沉感 */
-      box-shadow: none;
-    }
-
-    /* 指標容器 */
     .kpi-container {
       display: flex;
       gap: 20px;
       margin: 20px 0;
     }
 
-    /* 基礎指標卡片樣式 */
     .kpi-card {
       flex: 1;
       padding: 15px 20px;
@@ -161,37 +127,26 @@
       flex-direction: column;
       justify-content: center;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-      transition: transform 0.2s;
     }
 
-    .kpi-card:hover {
-      transform: translateY(-3px);
-    }
-
-    /* 最高值的顏色（紅色系） */
     .kpi-card.higher {
       background-color: #fff5f5;
       border-left: 5px solid #f56565;
       color: #c53030;
     }
 
-    /* 最低值的顏色（綠色系） */
     .kpi-card.lower {
       background-color: #f0fff4;
       border-left: 5px solid #48bb78;
       color: #276749;
     }
 
-    /* 標籤字體樣式 */
     .kpi-label {
       font-size: 0.9rem;
       font-weight: bold;
-      text-transform: uppercase;
       margin-bottom: 5px;
-      opacity: 0.8;
     }
 
-    /* 數值字體樣式 */
     .kpi-value {
       font-size: 1.4rem;
       font-weight: 800;
@@ -199,42 +154,38 @@
 
     .chart-container {
       position: relative;
-      /* 關鍵：讓 Chart.js 有參照基準 */
-      width: 90%;
-      /* 改為 90% 或 100% 增加空間利用率 */
+      width: 100%;
       margin: 30px auto;
       height: 400px;
-      /* 固定高度，寬度隨瀏覽器縮放 */
     }
   </style>
-
-
-
-
 </head>
 
 <body>
   <h1>🌫 PM2.5 即時空氣品質監測</h1>
   <p>資料來源：環境部即時 API</p>
-  <p>🕒 資料更新時間：<span id="update-time">
-      {{data.datetime}}
-  </p>
+  <p>🕒 資料更新時間：<span id="update-time">{{data.datetime}}</span></p>
 
-  {% if data %}
-  <div class="kpi-card higher">
-    <span class="kpi-label">🚩 最高測站 </span>
-    <span class="kpi-value">{{data.max[0]}} | {{data.max[1]}} <small>μg/m³</small></span>
+  <!-- 【修正】將 KPI 卡片用一個外層 div 包裹起來，並導正原本錯位的標籤結構 -->
+  <div class="kpi-container">
+    {% if data and data.max and data.min %}
+      <div class="kpi-card higher">
+        <span class="kpi-label">🚩 全台最高測站</span>
+        <span class="kpi-value">{{data.max[0]}} | {{data.max[1]}} <small>μg/m³</small></span>
+      </div>
+
+      <div class="kpi-card lower">
+        <span class="kpi-label">✅ 全台最低測站</span>
+        <span class="kpi-value">{{data.min[0]}} | {{data.min[1]}} <small>μg/m³</small></span>
+      </div>
+    {% else %}
+      <div class="kpi-card" style="background-color: #fffaf0; border-left: 5px solid #dd6b20; color: #dd6b20;">
+        <span class="kpi-label">提示</span>
+        <span class="kpi-value" style="font-size: 1.1rem;">目前資料庫中尚無有效的 PM2.5 資料，請確認 ETL 爬蟲已成功執行過一次。</span>
+      </div>
+    {% endif %}
   </div>
 
-  <div class="kpi-card lower">
-    <span class="kpi-label">✅ 最低測站</span>
-    <span class="kpi-value">{{data.min[0]}} | {{data.min[1]}} <small>μg/m³</small></span>
-  </div>
-  {% else %}
-  <span class="kpi-value">資料取得失敗!</span>
-  {% endif %}
-
-  </div>
   <div class="table-container">
     <table>
       <thead>
@@ -247,90 +198,79 @@
       <tbody>
         {% for row in result["rows"] %}
         <tr>
-          {% for data in row %}
-          <td>{{data}}</td>
+          {% for val in row %}
+          <td>{{val}}</td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <h1>🌫 PM2.5 即時數據繪製</h1>
+
+  <h1>📊 PM2.5 即時數據繪製</h1>
   <div class="controls">
     <select name="counties" id="counties">
       <option value="">-- 請選擇縣市 --</option>
       {% for county in counties %}
       <option value="{{county}}">{{county}}</option>
       {% endfor %}
-
-
     </select>
     <button id="btn-six-avg">📊 六都平均值對比</button>
   </div>
+  
   <div class="chart-container">
-    <canvas id="pm25Chart" height="350px"></canvas>
+    <canvas id="pm25Chart"></canvas>
   </div>
-
 
   <script>
     const countiesEl = document.querySelector("#counties");
     const sixCountyBtnEL = document.querySelector("#btn-six-avg");
     const countyCtx = document.querySelector("#pm25Chart");
 
-
-
-    console.log(countiesEl, sixCountyBtnEL);
-
-    sixCountyBtnEL.addEventListener("click", (e) => {
-
+    // 六都平均按鈕事件
+    sixCountyBtnEL.addEventListener("click", () => {
       fetch(`/api/data/six-county`)
         .then(res => res.json())
         .then(data => {
-          const labels = data.labels;
-          const values = data.values;
-
-          console.log(labels, values);
-          myChart.data.labels = labels;
+          myChart.data.labels = data.labels;
           myChart.data.datasets[0].label = `六都 PM2.5 平均值`;
-          myChart.data.datasets[0].data = values;
+          myChart.data.datasets[0].data = data.values;
           myChart.data.datasets[0].backgroundColor = 'rgba(155, 89, 182, 0.5)';
           myChart.data.datasets[0].borderColor = 'rgba(155, 89, 182, 1)';
           myChart.update();
-        })
-
+        });
     });
 
-
-    countiesEl.addEventListener("change", (e) => {
+    // 縣市切換下拉選單事件
+    countiesEl.addEventListener("change", () => {
       let county = countiesEl.value;
-      console.log(county);
-
+      if (!county) return;
 
       fetch(`/api/data/${county}`)
         .then(res => res.json())
         .then(data => {
-          const labels = data.map(value => value[1]);
-          const values = data.map(value => value[3]);
+          // 【修正】因為後端回傳結構變為 {"columns": ..., "rows": [...]}, 必須從 data.rows 提取陣列
+          const rows = data.rows || [];
+          const labels = rows.map(value => value[1]); // site 欄位
+          const values = rows.map(value => value[3]); // pm25 欄位
 
-          console.log(labels, values);
           myChart.data.labels = labels;
-          myChart.data.datasets[0].label = `${county} 各測 PM2.5`;
+          myChart.data.datasets[0].label = `${county} 各測站 PM2.5`;
           myChart.data.datasets[0].data = values;
           myChart.data.datasets[0].backgroundColor = 'rgba(52, 152, 219, 0.5)';
           myChart.data.datasets[0].borderColor = 'rgba(52, 152, 219, 1)';
           myChart.update();
-        })
+        });
     });
 
-
-    // 1. 圖
+    // 初始化 Chart.js
     let myChart = new Chart(countyCtx, {
       type: 'bar',
       data: {
-        labels: [], // X 軸：測名
+        labels: [],
         datasets: [{
-          label: 'PM2.5  (μg/m3)',
-          data: [], // Y 軸：值
+          label: 'PM2.5 (μg/m³)',
+          data: [],
           backgroundColor: 'rgba(52, 152, 219, 0.5)',
           borderColor: 'rgba(52, 152, 219, 1)',
           borderWidth: 1
@@ -338,20 +278,11 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false, // 圖自由伸
+        maintainAspectRatio: false,
         scales: { y: { beginAtZero: true } },
         plugins: { legend: { display: true, position: 'top' } }
       }
     });
-
-    console.log(myChart);
-
-    //countiesEl.selectedIndex = 1;
-    //countiesEl.dispatchEvent(new Event("change"));
-
   </script>
-
-
 </body>
-
 </html>

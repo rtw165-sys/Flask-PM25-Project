@@ -1,137 +1,94 @@
-import os
 from datetime import datetime
-import io
+from flask import Flask, jsonify, render_template
 import pandas as pd
-import pymysql
-import requests
-import urllib3
-from dotenv import load_dotenv
+import database  # 確保你的 database.py 裡面已經將資料表改為 pm25_records
 
-load_dotenv()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+app = Flask(__name__)
 
 
-def get_data():
-    print("取得PM2.5資料中...")
-    try:
-        # 【關鍵修正】移除了會引發伺服器逾時的 sort 參數，並保留必要的欄位檢查
-        api_url = "https://data.moenv.gov.tw/api/v2/aqx_p_02?api_key=846e44e1-8cc5-4893-ad87-c79d2d383706&limit=1000&format=JSON"
-        resp = requests.get(api_url, verify=False)
-
-        res_json = resp.json()
-
-        # 如果 API 真的出錯，直接印出它的錯誤回應，方便 debug
-        if "records" not in res_json:
-            print(f"API 未回傳標準資料。收到內容: {res_json}")
-            return None
-
-        df = pd.DataFrame(res_json["records"])
-        if df.empty:
-            print("API 回傳的 records 清單為空")
-            return None
-
-        # 轉換欄位名稱為小寫，防止環境部突改大小寫
-        df.columns = df.columns.str.lower()
-        if "pm2.5" in df.columns:
-            df = df.rename(columns={"pm2.5": "pm25"})
-
-        # 確保 pm25 轉為數字型態
-        df["pm25"] = pd.to_numeric(df["pm25"], errors="coerce")
-
-        # 只保留需要的 5 個欄位，並過濾掉重複與缺失值
-        target_cols = ["site", "county", "pm25", "datacreationdate", "itemunit"]
-
-        # 檢查欄位是否齊全
-        missing_cols = [col for col in target_cols if col not in df.columns]
-        if missing_cols:
-            print(
-                f"API 缺少必要欄位: {missing_cols}，當前擁有的欄位: {list(df.columns)}"
-            )
-            return None
-
-        df1 = (
-            df[target_cols]
-            .drop_duplicates(subset=["site", "datacreationdate"])
-            .dropna()
-        )
-
-        # 轉換成 list of tuples 方便 executemany 寫入
-        data = [tuple(x) for x in df1.values]
-        return data
-    except Exception as e:
-        print(f"抓取資料發生錯誤: {e}")
-    return None
+@app.errorhandler(404)
+def error_404(e):
+    return render_template("404.html")
 
 
-def insert_data(pm25_data):
-    try:
-        # 【修正】資料表名稱由 data 改為 pm25_records
-        sqlstr = """
-        INSERT IGNORE INTO pm25_records (site, county, pm25, datacreationdate, itemunit) 
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        cursor.executemany(sqlstr, pm25_data)
-        conn.commit()
+@app.route("/api/data/six-county")
+def api_data_six_county():
+    six_county = ["臺北市", "新北市", "桃園市", "臺中市", "臺南市", "高雄市"]
+    result = database.get_latest_data()
 
-        if cursor.rowcount <= 0:
-            print("目前無更新資料（資料皆已存在於 pm25_records 中）")
-        else:
-            print(f"成功更新 {cursor.rowcount} 筆資料至 pm25_records")
-    except Exception as e:
-        print(f"寫入資料庫發生錯誤: {e}")
+    avg_pm25 = []
+    if result["success"] and result["rows"]:
+        # 將資料轉成 DataFrame 並塞入正確的欄位名稱
+        df = pd.DataFrame(result["rows"], columns=result["columns"])
 
-
-def open_db():
-    try:
-        conn = pymysql.connect(
-            host=os.environ.get("HOST"),
-            port=int(os.environ.get("PORT", 3306)),
-            user=os.environ.get("USER"),
-            password=os.environ.get("PASSWORD"),
-            database=os.environ.get("NAME"),
-            ssl={"ca": None},
-            autocommit=False,
-        )
-        cursor = conn.cursor()
-        return conn, cursor
-    except Exception as e:
-        print(f"資料庫連線失敗: {e}")
-    return None, None
-
-
-def create_table():
-    try:
-        # 【修正】資料表名稱由 data 改為 pm25_records
-        sqlstr = """
-        CREATE TABLE IF NOT EXISTS pm25_records (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            site VARCHAR(50),
-            county VARCHAR(20),
-            pm25 INT,
-            datacreationdate DATETIME,
-            itemunit VARCHAR(20),
-            UNIQUE KEY uq_site_datacreationdate (site, datacreationdate)
-        );
-        """
-        cursor.execute(sqlstr)
-        conn.commit()
-        print("資料表 pm25_records 檢查/建立完成")
-    except Exception as e:
-        print(f"建立資料表失敗: {e}")
-
-
-print("-----------------------------------------")
-print(f"運行時間: {datetime.now()}")
-
-conn, cursor = open_db()
-if conn:
-    print("開啟資料庫成功")
-    create_table()
-    pm25_list = get_data()
-    if pm25_list:
-        insert_data(pm25_list)
+        for county in six_county:
+            # 安全篩選：避免 groupby 找不到縣市噴 KeyError
+            county_df = df[df["county"] == county]
+            if not county_df.empty:
+                avg_val = county_df["pm25"].mean()
+                # 檢查平均值是否為有效數字 (避免 NaN)
+                avg_pm25.append(round(avg_val, 2) if pd.notna(avg_val) else 0)
+            else:
+                avg_pm25.append(0)  # 若該縣市暫時無資料，預設給 0
     else:
-        print("目前無新資料可供寫入")
-    conn.close()
-else:
-    print("資料庫開啟失敗！")
+        avg_pm25 = [0] * len(six_county)
+
+    return jsonify(
+        {
+            "datetime": datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),  # 【修正】轉為字串以利 jsonify
+            "labels": six_county,
+            "values": avg_pm25,
+        }
+    )
+
+
+@app.route("/api/data/<county>")
+def api_data_by_county(county):
+    # 建議回傳格式標準化，讓前端好拿資料
+    res = database.get_data_by_county(county)
+    if res["success"]:
+        return jsonify({"columns": res["columns"], "rows": res["rows"]})
+    return jsonify({"success": False, "message": res["message"]}), 500
+
+
+@app.route("/api/counties")
+def api_counties():
+    counties_res = database.get_counties()
+    if counties_res["success"]:
+        counties = [c[0] for c in counties_res["rows"]]
+        return jsonify(counties)
+    return jsonify([]), 500
+
+
+@app.route("/")
+def index():
+    result = database.get_latest_data()
+    counties_res = database.get_counties()
+    counties = [c[0] for c in counties_res["rows"]] if counties_res["success"] else []
+
+    data = {}
+    if result["success"] and result["rows"]:
+        # 【優化】使用 DataFrame 處理全台極值，避免硬編碼 [1][3] 欄位索引錯位
+        df = pd.DataFrame(result["rows"], columns=result["columns"])
+
+        # 找出 pm25 最小與最大的那一行資料
+        min_row = df.loc[df["pm25"].idxmin()]
+        max_row = df.loc[df["pm25"].idxmax()]
+
+        # 取出資料時間 (轉成字串丟給前端)
+        data_datetime = df["datacreationdate"].iloc[0]
+        if isinstance(data_datetime, datetime):
+            data_datetime = data_datetime.strftime("%Y-%m-%d %H:%M:%S")
+
+        data["datetime"] = data_datetime
+        data["min"] = [min_row["site"], int(min_row["pm25"])]
+        data["max"] = [max_row["site"], int(max_row["pm25"])]
+
+    return render_template("index.html", result=result, counties=counties, data=data)
+
+
+if __name__ == "__main__":
+    # debug=True 適合開發環境，會自動重載程式碼
+    app.run(debug=True)
