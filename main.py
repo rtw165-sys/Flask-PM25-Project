@@ -14,26 +14,41 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def get_data():
     print("取得PM2.5資料中...")
     try:
-        api_url = "https://data.moenv.gov.tw/api/v2/aqx_p_02?api_key=846e44e1-8cc5-4893-ad87-c79d2d383706&limit=1000&sort=datacreationdate%20desc&format=JSON"
+        # 【關鍵修正】移除了會引發伺服器逾時的 sort 參數，並保留必要的欄位檢查
+        api_url = "https://data.moenv.gov.tw/api/v2/aqx_p_02?api_key=846e44e1-8cc5-4893-ad87-c79d2d383706&limit=1000&format=JSON"
         resp = requests.get(api_url, verify=False)
 
         res_json = resp.json()
+
+        # 如果 API 真的出錯，直接印出它的錯誤回應，方便 debug
         if "records" not in res_json:
-            print("API 回傳格式錯誤或無資料")
+            print(f"API 未回傳標準資料。收到內容: {res_json}")
             return None
 
         df = pd.DataFrame(res_json["records"])
+        if df.empty:
+            print("API 回傳的 records 清單為空")
+            return None
 
-        # 【強健版欄位容錯】轉換欄位名稱為小寫，防止環境部 API 突然改大小寫
+        # 轉換欄位名稱為小寫，防止環境部突改大小寫
         df.columns = df.columns.str.lower()
         if "pm2.5" in df.columns:
             df = df.rename(columns={"pm2.5": "pm25"})
 
-        # 為了配合你的 SQL 欄位類型，進行資料清洗與欄位型態轉換
+        # 確保 pm25 轉為數字型態
         df["pm25"] = pd.to_numeric(df["pm25"], errors="coerce")
 
         # 只保留需要的 5 個欄位，並過濾掉重複與缺失值
         target_cols = ["site", "county", "pm25", "datacreationdate", "itemunit"]
+
+        # 檢查欄位是否齊全
+        missing_cols = [col for col in target_cols if col not in df.columns]
+        if missing_cols:
+            print(
+                f"API 缺少必要欄位: {missing_cols}，當前擁有的欄位: {list(df.columns)}"
+            )
+            return None
+
         df1 = (
             df[target_cols]
             .drop_duplicates(subset=["site", "datacreationdate"])
